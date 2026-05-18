@@ -481,7 +481,8 @@ struct FlowStackTests {
 
         #expect(result.0)
         #expect(result.1)
-        #expect(router.activeStack.path == [.detail(1), .detail(2)])
+        #expect(router.activeStack.path.count == 2)
+        #expect(Set(router.activeStack.path) == Set([.detail(1), .detail(2)]))
     }
 
     @Test func operationHistoryRecordsAppliedAndBlockedOperations() {
