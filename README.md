@@ -125,7 +125,7 @@ var body: some View {
 }
 ```
 
-Use the root builder for the initial screen of each stack and the destination builder for pushed screens.
+Use the screen builder to render the view for any given route in the navigation stack.
 
 ### 3. Build screens
 
@@ -142,11 +142,6 @@ func screen(for route: AppRoute) -> some View {
     case .settings:
         SettingsView()
     }
-}
-
-@ViewBuilder
-func destination(for route: AppRoute) -> some View {
-    screen(for: route)
 }
 ```
 
