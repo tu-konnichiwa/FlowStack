@@ -1,55 +1,68 @@
 # FlowStack
 
-FlowStack is a SwiftUI navigation router for iOS 16+. It gives an app-level navigation layer for `NavigationStack`, push/pop flows, sheet presentation, full-screen cover presentation, root replacement, global dialogs, route identity, navigation guards, async transition queues, and default navigation styling.
+FlowStack is a SwiftUI navigation router for iOS 16+ and macOS 13+ that centralizes navigation in one place. It helps you replace scattered NavigationLink, sheet, fullScreenCover, and alert state with a single router and a predictable API.
 
-Use FlowStack when you want navigation to be driven from a single router instead of scattering `NavigationLink`, `.sheet`, `.fullScreenCover`, and alert state across many views.
+If you want a navigation layer that supports:
 
-## Features
+- push / pop / replace / reset flows
+- nested sheets and full-screen covers
+- app-wide dialogs
+- async guards and serialized transitions
+- route-aware styling and debugging
 
-- SwiftUI `NavigationStack` router for iOS 16+.
-- Type-safe route enum support with `Hashable` or `RouteHashable`.
-- Push, multi-push, pop, pop-to-root, pop-to-route, and replace current screen.
-- Push then remove the previous screen with `pushRemovingPrevious`.
-- Replace root with refreshed root identity, even when setting the same route again.
-- Present nested `sheet` and `fullScreenCover` stacks; each presentation owns its own navigation path.
-- Dismiss active, specific, nested, or all presented stacks.
-- Global dialog overlay above root, pushed screens, sheets, and full-screen covers.
-- Queue, replace, ignore, or clear global dialogs.
-- Default style system for every stack, modal, root screen, and pushed destination.
-- Context-aware styling by stack index, stack id, presentation style, root route, screen route, and screen depth.
-- Sync and async preconditions for navigation guards, login checks, permissions, paywall gates, and save-before-leave flows.
-- Serialized async navigation queue to avoid overlapping SwiftUI transitions.
-- Operation history for debugging applied and blocked navigation actions.
+then FlowStack is designed for that.
 
-## Keywords
+## Why FlowStack
 
-SwiftUI navigation, NavigationStack router, iOS navigation, Swift Package Manager, SPM, push pop navigation, sheet router, fullScreenCover router, global dialog, alert coordinator, route enum, deep link navigation, app router, navigation coordinator, SwiftUI coordinator, iOS 16.
+FlowStack is a good fit when your app needs one source of truth for navigation state. It is especially useful for:
+
+- feature-rich apps with multiple nested flows
+- onboarding and auth flows that need guards
+- deep-link / state restoration workflows
+- apps that want to avoid manual navigation state spread across views
+- teams that want consistent styling and debug visibility for navigation events
+
+## What you get
+
+- NavigationStack-based routing for root and pushed screens
+- Nested sheet and full-screen cover stacks
+- Global dialog overlay above every stack
+- Sync and async navigation guards
+- Serialized async transitions to avoid race conditions
+- Route-aware styling hooks
+- Operation history for applied and blocked actions
+- Route identity helpers for stable navigation state
+
+## Requirements
+
+- iOS 16+
+- macOS 13+
+- Swift 6
+
+On macOS, FlowStack uses a sheet fallback for full-screen presentation behavior.
 
 ## Installation
 
 ### Swift Package Manager
 
-Add FlowStack to an iOS app with Swift Package Manager.
+Add FlowStack as a dependency in your app target.
 
-In Xcode:
+#### Xcode
 
-1. Open `File` > `Add Package Dependencies...`.
-2. Enter the package URL:
+1. Open File > Add Package Dependencies...
+2. Add the repository URL:
+   https://github.com/tu-konnichiwa/FlowStack.git
+3. Choose a version rule such as Up to Next Major Version.
+4. Add the FlowStack product to your app target.
 
-```text
-https://github.com/tu-konnichiwa/FlowStack.git
-```
-
-3. Select a version rule, for example `Up to Next Major Version`.
-4. Add the `FlowStack` product to your app target.
-
-In another Swift package, add FlowStack to `Package.swift`:
+#### Package.swift
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/tu-konnichiwa/FlowStack.git", from: "1.0.0")
+    .package(url: "https://github.com/tu-konnichiwa/FlowStack.git", from: "1.0.2")
 ],
-targets: [
+
+.targets: [
     .target(
         name: "YourTarget",
         dependencies: [
@@ -65,61 +78,40 @@ Then import it:
 import FlowStack
 ```
 
-## Swift Package Index
+## Quick start
 
-FlowStack is ready to be submitted to the Swift Package Index once the GitHub repository is public and has at least one semantic version tag, for example `1.0.0`.
+### 1. Define routes
 
-Submit the package URL here:
-
-```text
-https://swiftpackageindex.com/add-a-package
-```
-
-Use this repository URL when submitting:
-
-```text
-https://github.com/tu-konnichiwa/FlowStack.git
-```
-
-For Swift Package Index compatibility, the package should keep:
-
-- A public GitHub repository.
-- A valid `Package.swift` at the repository root.
-- A semantic version release tag such as `1.0.0`.
-- A package URL with `https` and `.git`.
-- A build that passes on supported platforms.
-
-After the package appears on Swift Package Index, open its package page and use `Do you maintain this package?` to get official compatibility badges for this README.
-
-## Route
-
-For simple routes, use any `Hashable` type. For routes with closures, bindings, view models, or custom payloads, conform to `RouteHashable`:
+Use any Hashable route for simple cases.
 
 ```swift
-enum AppRoute: RouteHashable {
+enum AppRoute: Hashable {
     case splash
-    case main
-    case webView(String)
-    case colorPicker(initialHex: String, didPick: (Color) -> Void)
+    case home
+    case detail(Int)
+    case settings
 }
 ```
 
-`RouteHashable` auto-generates equality and hashing from a route id. Override `id` when the associated payload is complex and needs a stable production identity:
+For routes that carry closures, bindings, or complex payloads, conform to RouteHashable and provide a stable id.
 
 ```swift
 enum AppRoute: RouteHashable {
     case detail(User)
+    case colorPicker(initialHex: String, didPick: (Color) -> Void)
 
     var id: String {
         switch self {
         case .detail(let user):
             return "detail_\(user.id)"
+        case .colorPicker(let initialHex, _):
+            return "colorPicker_\(initialHex)"
         }
     }
 }
 ```
 
-## Root Host
+### 2. Create the router and host the view
 
 ```swift
 @StateObject private var router = FlowRouter<AppRoute, AppDialog>(root: .splash)
@@ -127,104 +119,125 @@ enum AppRoute: RouteHashable {
 var body: some View {
     FlowStackView(router: router) { route in
         screen(for: route)
-    } destination: { route in
-        screen(for: route)
     } dialog: { dialog in
-        AnyView(AppDialogView(dialog: dialog))
+        AppDialogView(dialog: dialog)
     }
 }
 ```
 
-`FlowStackView` supports nested `sheet` and `fullScreenCover` presentations. Each presented stack owns its own `NavigationStack`.
+Use the root builder for the initial screen of each stack and the destination builder for pushed screens.
 
-The `dialog` builder is optional. When provided, it is rendered as a global overlay above the whole navigation tree, including pushed screens, sheets, and full-screen covers.
-
-## Default Style
-
-The default style mirrors the base app pattern: navigation bars are hidden and text alignment is leading.
+### 3. Build screens
 
 ```swift
-FlowStackView(router: router) { route in
-    screen(for: route)
-} destination: { route in
+@ViewBuilder
+func screen(for route: AppRoute) -> some View {
+    switch route {
+    case .splash:
+        SplashView()
+    case .home:
+        HomeView()
+    case .detail:
+        DetailView()
+    case .settings:
+        SettingsView()
+    }
+}
+
+@ViewBuilder
+func destination(for route: AppRoute) -> some View {
     screen(for: route)
 }
 ```
 
-Customize the style once and it is applied to every root screen, pushed destination, sheet, and full-screen stack:
+## Core navigation API
+
+### Root and stack operations
 
 ```swift
-let style = FlowNavigationStyle.default
-    .navigationBarHidden(true)
-    .multilineTextAlignment(.leading)
-    .screenStyle { view in
-        view
-            .background(Color.appBackground)
-            .preferredColorScheme(.light)
-    }
-    .stackStyle { view in
-        view
-            .tint(.primary)
-    }
-    .modalStyle { view in
-        view
-            .presentationDragIndicator(.visible)
-    }
+router.setRoot(.home)
+router.push(.detail(42))
+router.pushRemovingPrevious(.settings)
+router.replaceCurrent(with: .settings)
+router.replacePath(root: .home, path: [.detail(42), .settings])
+router.pop()
+router.popToRoot()
+router.popTo(.detail(42))
+```
 
-FlowStackView(router: router, style: style) { route in
-    screen(for: route)
-} destination: { route in
-    screen(for: route)
+### Present modal stacks
+
+```swift
+router.sheet(.picker)
+router.fullScreenCover(.paywall)
+router.dismiss()
+router.dismissAll()
+```
+
+### Target a specific stack
+
+You can push into the root stack, the active modal stack, or a specific stack by id.
+
+```swift
+let rootID = router.rootStack.id
+router.sheet(.picker)
+router.push(.settings, on: .stack(rootID))
+```
+
+### Presentation options
+
+Use FlowPresentationOptions when you need to control modal behavior.
+
+```swift
+let options = FlowPresentationOptions(
+    allowsInteractiveDismiss: false,
+    clearsNestedPresentationOnDismiss: true
+)
+
+router.sheet(.picker, options: options)
+```
+
+## Conditions and guards
+
+FlowStack supports both sync and async preconditions.
+
+### Sync condition
+
+```swift
+router.push(.settings) { operation, previousStacks in
+    session.isLoggedIn
 }
 ```
 
-Use `screenStyle` for all screens, `stackStyle` for each `NavigationStack`, and `modalStyle` for every presented stack.
-
-Each style hook also has a context-aware overload with the stack index:
+### Default conditions
 
 ```swift
-let style = FlowNavigationStyle.default
-    .screenStyle { view, context in
-        view
-            .background(context.isRootStack ? Color.white : Color.secondarySystemBackground)
-    }
-    .modalStyle { view, context in
-        view
-            .presentationDragIndicator(context.stackIndex > 0 ? .visible : .hidden)
-    }
-    .stackStyle { view, context in
-        view
-            .tint(context.presentationStyle == .fullScreenCover ? .red : .primary)
-    }
+router.setDefaultPrecondition(for: .push) { operation, previousStacks in
+    session.isLoggedIn
+}
 ```
 
-`FlowNavigationStyle.Context` exposes `stackIndex`, `stackID`, `presentationStyle`, `isRootStack`, `rootRoute`, `screenRoute`, `screenDepth`, and `isRootScreen`.
+### Async gates
 
-It also exposes route information, which is the preferred way to style a screen. Checking the concrete SwiftUI view type after type erasure is not reliable.
+Use async gates for permissions, paywall checks, or save-before-leave flows.
 
 ```swift
-let style = FlowNavigationStyle.default
-    .screenStyle { view, context in
-        if context.screenRoute(as: AppRoute.self) == .home {
-            view.background(Color.homeBackground)
-        } else {
-            view
-        }
-    }
-    .stackStyle { view, context in
-        if context.rootRoute(as: AppRoute.self) == .editor {
-            view.tint(.orange)
-        } else {
-            view
-        }
-    }
+await router.pushAsync(.editor) { operation, previousStacks in
+    await permissions.requestPhotoAccess()
+}
+
+router.queuedTransitionDelayNanoseconds = 250_000_000
+await router.sheetAsync(.picker)
+await router.fullScreenCoverAsync(.paywall)
 ```
 
-## Global Dialog
+The one-off condition overrides the default condition.
 
-Global dialogs are app-wide overlays controlled by the router. Use them for alerts, confirmation dialogs, loading blockers, permission prompts, session-expired dialogs, and other UI that must sit above every stack.
+## Global dialogs
 
-Define your dialog model as `Identifiable`:
+Global dialogs are rendered above the full navigation tree, including pushed screens, sheets, and full-screen covers.
+
+### Define your dialog model
 
 ```swift
 enum AppDialog: Identifiable, Equatable {
@@ -245,169 +258,168 @@ enum AppDialog: Identifiable, Equatable {
 }
 ```
 
-Render it once at the root host:
+### Render the dialog
 
 ```swift
 FlowStackView(router: router) { route in
     screen(for: route)
-} destination: { route in
-    screen(for: route)
 } dialog: { dialog in
-    AnyView(
-        AppDialogView(dialog: dialog)
-    )
+    AppDialogView(dialog: dialog)
 }
 ```
 
-The dialog view receives a `Binding<AppDialog?>`. Set it to `nil` when the user closes the current dialog:
-
-```swift
-struct AppDialogView: View {
-    @Binding var dialog: AppDialog?
-
-    var body: some View {
-        switch dialog {
-        case .networkError:
-            ConfirmDialog(
-                title: "Network Error",
-                onClose: { dialog = nil }
-            )
-
-        case .sessionExpired:
-            ConfirmDialog(
-                title: "Session Expired",
-                onClose: { dialog = nil }
-            )
-
-        case .deleteLogo:
-            ConfirmDialog(
-                title: "Delete Logo",
-                onClose: { dialog = nil }
-            )
-
-        case nil:
-            EmptyView()
-        }
-    }
-}
-```
-
-Show a dialog from any place that can access the router:
+### Show and hide dialogs
 
 ```swift
 router.showGlobalDialog(.networkError, policy: .queue)
 router.showGlobalDialog(.sessionExpired, policy: .replace)
-```
-
-Policy behavior:
-
-| Policy | Behavior | Use case |
-| --- | --- | --- |
-| `.replace` | Show immediately and clear queued dialogs. | Critical dialogs such as session expired, forced update, hard blocker. |
-| `.replaceKeepingQueue` | Show immediately but keep queued dialogs for later. | Temporarily interrupt current dialog flow, then continue queued dialogs. |
-| `.queue` | Show now if no dialog is visible, otherwise enqueue. | Non-critical alerts that should be shown one by one. |
-| `.ignoreIfVisible` | Show only when no dialog is visible. | Toast-like or low-priority dialogs that should not interrupt current UI. |
-
-Dismiss and queue control:
-
-```swift
 router.hideGlobalDialog()
 router.clearGlobalDialogs()
-router.queuedGlobalDialogCount
 ```
 
-`hideGlobalDialog()` hides the current dialog. If the queue has another dialog, it becomes visible immediately. `clearGlobalDialogs()` removes both the visible dialog and all queued dialogs.
+### Dialog policies
 
-Example queue:
+| Policy | Behavior | Recommended use |
+| --- | --- | --- |
+| replace | Replaces the visible dialog and clears the queue | critical blockers |
+| replaceKeepingQueue | Replaces the visible dialog but keeps queued dialogs | temporary interruption |
+| queue | Shows immediately if possible, otherwise queues | normal alerts |
+| ignoreIfVisible | Ignores the request while a dialog is visible | low-priority toasts |
 
-```swift
-router.showGlobalDialog(.networkError, policy: .queue)
-router.showGlobalDialog(.deleteLogo(id: "1"), policy: .queue)
+## Styling
 
-router.hideGlobalDialog()
-// .deleteLogo(id: "1") is now visible.
-```
+FlowStack provides one style object for every stack, screen, and modal layer.
 
-Example replace:
-
-```swift
-router.showGlobalDialog(.networkError, policy: .queue)
-router.showGlobalDialog(.deleteLogo(id: "1"), policy: .queue)
-router.showGlobalDialog(.sessionExpired, policy: .replace)
-
-router.hideGlobalDialog()
-// No old queued dialog appears because .replace clears the queue.
-```
-
-## Actions
+### Default style
 
 ```swift
-router.setRoot(.main)
-router.push(.detail(id))
-router.pushRemovingPrevious(.main)
-router.replaceCurrent(with: .settings)
-router.pop()
-router.popToRoot()
-router.sheet(.colorPicker(initialHex: "#FFFFFF") { _ in })
-router.fullScreenCover(.paywall)
-router.dismiss()
-router.dismissAll()
-```
-
-## Conditions
-
-Each action can receive a one-off condition. The condition sees the operation and the previous stacks.
-
-```swift
-router.push(.settings) { operation, previousStacks in
-    session.isLoggedIn
+FlowStackView(router: router) { route in
+    screen(for: route)
 }
 ```
 
-Default conditions can be registered per action kind:
+### Customize style globally
 
 ```swift
-router.setDefaultPrecondition(for: .push) { operation, previousStacks in
-    session.isLoggedIn
+let style = FlowNavigationStyle.default
+    .navigationBarHidden(true)
+    .multilineTextAlignment(.leading)
+    .screenStyle { view in
+        view
+            .background(Color(.systemBackground))
+            .ignoresSafeArea()
+    }
+    .stackStyle { view in
+        view.tint(.accentColor)
+    }
+    .modalStyle { view in
+        view
+            .presentationDragIndicator(.visible)
+    }
+
+FlowStackView(router: router, style: style) { route in
+    screen(for: route)
 }
 ```
 
-The one-off condition takes priority over the default condition.
+### Context-aware styling
 
-## Async Gates And Queue
-
-Use async variants when navigation depends on permission, paywall, saving draft, login, or another asynchronous check:
+Use the style context to apply different treatment per stack, root route, screen route, or depth.
 
 ```swift
-await router.pushAsync(.editor) { operation, previousStacks in
-    await permissions.requestPhotoAccess()
-}
+let style = FlowNavigationStyle.default
+    .screenStyle { view, context in
+        if context.screenRoute(as: AppRoute.self) == .home {
+            view.background(Color.white)
+        } else {
+            view
+        }
+    }
+    .stackStyle { view, context in
+        if context.rootRoute(as: AppRoute.self) == .editor {
+            view.tint(.orange)
+        } else {
+            view
+        }
+    }
+    .modalStyle { view, context in
+        if context.presentationStyle == .fullScreenCover {
+            view.presentationCornerRadius(24)
+        } else {
+            view
+        }
+    }
 ```
 
-Async actions are serialized through the router queue. Set a small delay if SwiftUI modal transitions need spacing:
+The context exposes:
 
-```swift
-router.queuedTransitionDelayNanoseconds = 250_000_000
-await router.sheetAsync(.picker)
-await router.fullScreenCoverAsync(.paywall)
-```
+- stackIndex
+- stackID
+- presentationStyle
+- isRootStack
+- rootRoute
+- screenRoute
+- screenDepth
+- isRootScreen
 
-## Debugging
+Use context.route accessors instead of inspecting the concrete SwiftUI view type.
 
-The router records applied and blocked operations:
+## Debugging and observability
+
+FlowStack records applied and blocked operations.
 
 ```swift
 router.operationHistory
 router.clearOperationHistory()
 router.maximumOperationHistoryCount = 100
+router.didApplyOperation = { operation, previousStacks in
+    print(operation)
+}
 ```
 
-Disable fallback route id warnings if needed:
+If you want to inspect a route identity fallback warning, you can disable it.
 
 ```swift
 FlowRouteIDDiagnostics.warnsOnFallbackID = false
 ```
 
+## Common patterns
+
+### Deep-link or restore navigation state
+
+```swift
+router.replacePath(root: .home, path: [.detail(42), .settings])
+```
+
+### Replace the current screen while keeping the stack
+
+```swift
+router.replaceCurrent(with: .settings)
+```
+
+### Push and remove the previous screen
+
+```swift
+router.pushRemovingPrevious(.main)
+```
+
+### Keep the same root route but refresh its identity
+
+```swift
+router.setRoot(.home)
+```
+
+## Recommendations for a top-tier README
+
+To make the README feel polished and library-grade, keep the structure simple:
+
+1. one-sentence value proposition
+2. clear installation steps
+3. a minimal working example
+4. a feature table for key capabilities
+5. answers for guard, async, dialog, styling, and debugging
+6. a short section on best practices and limitations
+
 ## License
 
-FlowStack is available under the MIT license. See [LICENSE](LICENSE) for details.
+FlowStack is available under the MIT license. See LICENSE for details.
