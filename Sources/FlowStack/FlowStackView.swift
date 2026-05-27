@@ -1,23 +1,20 @@
 import SwiftUI
 
-public struct FlowStackView<Route: Hashable, Dialog: Identifiable, Root: View, Destination: View>: View {
+public struct FlowStackView<Route: Hashable, Dialog: Identifiable, Screen: View>: View {
     @ObservedObject private var router: FlowRouter<Route, Dialog>
     private let style: FlowNavigationStyle
-    private let root: (Route) -> Root
-    private let destination: (Route) -> Destination
+    private let screen: (Route) -> Screen
     private let dialog: ((Binding<Dialog?>) -> AnyView)?
 
     public init(
         router: FlowRouter<Route, Dialog>,
         style: FlowNavigationStyle = .default,
-        @ViewBuilder root: @escaping (Route) -> Root,
-        @ViewBuilder destination: @escaping (Route) -> Destination,
+        @ViewBuilder screen: @escaping (Route) -> Screen,
         dialog: ((Binding<Dialog?>) -> AnyView)? = nil
     ) {
         self.router = router
         self.style = style
-        self.root = root
-        self.destination = destination
+        self.screen = screen
         self.dialog = dialog
     }
 
@@ -26,8 +23,7 @@ public struct FlowStackView<Route: Hashable, Dialog: Identifiable, Root: View, D
             router: router,
             index: 0,
             style: style,
-            root: root,
-            destination: destination
+            screen: screen
         )
         .id(router.rootID)
         .overlay {
@@ -49,12 +45,11 @@ public struct FlowStackView<Route: Hashable, Dialog: Identifiable, Root: View, D
     }
 }
 
-private struct FlowStackLayer<Route: Hashable, Dialog, Root: View, Destination: View>: View {
+private struct FlowStackLayer<Route: Hashable, Dialog, Screen: View>: View {
     @ObservedObject var router: FlowRouter<Route, Dialog>
     let index: Int
     let style: FlowNavigationStyle
-    let root: (Route) -> Root
-    let destination: (Route) -> Destination
+    let screen: (Route) -> Screen
 
     var body: some View {
         if router.stacks.indices.contains(index) {
@@ -70,7 +65,7 @@ private struct FlowStackLayer<Route: Hashable, Dialog, Root: View, Destination: 
             style.stack(
                 AnyView(
                     NavigationStack(path: router.bindingForNavigationPath(stackID: stack.id)) {
-                        root(stack.root)
+                        screen(stack.root)
                             .id(stack.rootID)
                             .modifier(FlowScreenDefaultStyle(style: style, context: context))
                             .navigationDestination(for: FlowRouteNode<Route>.self) { node in
@@ -82,7 +77,7 @@ private struct FlowStackLayer<Route: Hashable, Dialog, Root: View, Destination: 
                                     screenRoute: AnyHashable(node.route),
                                     screenDepth: (stack.navigationPath.firstIndex(of: node) ?? 0) + 1
                                 )
-                                destination(node.route)
+                                screen(node.route)
                                     .modifier(FlowScreenDefaultStyle(style: style, context: destinationContext))
                             }
                     }
@@ -94,20 +89,18 @@ private struct FlowStackLayer<Route: Hashable, Dialog, Root: View, Destination: 
                     router: router,
                     index: index + 1,
                     style: style,
-                    root: root,
-                    destination: destination
+                    screen: screen
                 )
             )
         }
     }
 }
 
-private struct FlowPresentationLayer<Route: Hashable, Dialog, Root: View, Destination: View>: ViewModifier {
+private struct FlowPresentationLayer<Route: Hashable, Dialog, Screen: View>: ViewModifier {
     @ObservedObject var router: FlowRouter<Route, Dialog>
     let index: Int
     let style: FlowNavigationStyle
-    let root: (Route) -> Root
-    let destination: (Route) -> Destination
+    let screen: (Route) -> Screen
 
     func body(content: Content) -> some View {
         content
@@ -139,7 +132,7 @@ private struct FlowPresentationLayer<Route: Hashable, Dialog, Root: View, Destin
             )
             style.modal(
                 AnyView(
-                    FlowStackLayer(router: router, index: index, style: style, root: root, destination: destination)
+                    FlowStackLayer(router: router, index: index, style: style, screen: screen)
                         .interactiveDismissDisabled(!stack.options.allowsInteractiveDismiss)
                 ),
                 context

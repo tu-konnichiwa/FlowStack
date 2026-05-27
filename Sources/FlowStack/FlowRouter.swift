@@ -32,6 +32,7 @@ public final class FlowRouter<Route: Hashable, Dialog>: FlowRouting {
     var defaultAsyncPreconditions: [FlowOperationKind: AsyncPrecondition] = [:]
     var dialogQueue: [Dialog] = []
     var isRunningQueuedTransition = false
+    var transitionWaiters: [CheckedContinuation<Void, Never>] = []
 
     public init(root: Route) {
         self.stacks = [FlowStackState(root: root)]

@@ -10,7 +10,13 @@ public extension FlowRouter {
             },
             set: { [weak self] newValue in
                 guard let self, let index = self.stacks.firstIndex(where: { $0.id == stackID }) else { return }
-                self.stacks[index].navigationPath = newValue.map { FlowRouteNode(route: $0) }
+                let oldPath = self.stacks[index].navigationPath
+                self.stacks[index].navigationPath = newValue.enumerated().map { offset, route in
+                    if offset < oldPath.count, oldPath[offset].route == route {
+                        return oldPath[offset]
+                    }
+                    return FlowRouteNode(route: route)
+                }
             }
         )
     }
