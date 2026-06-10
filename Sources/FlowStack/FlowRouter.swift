@@ -30,7 +30,7 @@ public final class FlowRouter<Route: Hashable, Dialog>: FlowRouting {
 
     var defaultPreconditions: [FlowOperationKind: Precondition] = [:]
     var defaultAsyncPreconditions: [FlowOperationKind: AsyncPrecondition] = [:]
-    var dialogQueue: [Dialog] = []
+    @Published var dialogQueue: [Dialog] = []
     var isRunningQueuedTransition = false
     var transitionWaiters: [CheckedContinuation<Void, Never>] = []
 

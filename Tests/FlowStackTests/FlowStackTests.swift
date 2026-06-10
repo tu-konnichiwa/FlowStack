@@ -1,3 +1,4 @@
+import Combine
 import Testing
 @testable import FlowStack
 
@@ -589,6 +590,22 @@ struct FlowStackTests {
         router.hideGlobalDialog()
 
         #expect(router.globalDialog == TestDialog(id: "b"))
+    }
+
+    @Test func dialogQueuePublishesChangesWhenOnlyQueueChanges() {
+        let router = FlowRouter<TestRoute, TestDialog>(root: .home)
+        router.showGlobalDialog(TestDialog(id: "a"), policy: .queue)
+
+        var changeCount = 0
+        let cancellable = router.objectWillChange.sink {
+            changeCount += 1
+        }
+
+        router.showGlobalDialog(TestDialog(id: "b"), policy: .queue)
+
+        #expect(changeCount == 1)
+        #expect(router.queuedGlobalDialogCount == 1)
+        _ = cancellable
     }
 
     @Test func dialogInterruptPolicyShowsNewDialogBeforeVisibleDialog() {
