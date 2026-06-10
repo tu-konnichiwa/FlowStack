@@ -35,3 +35,14 @@ public extension FlowRouter {
         globalDialog = nil
     }
 }
+
+@MainActor
+public extension FlowRouter where Dialog: Identifiable {
+    func hideGlobalDialog(id: Dialog.ID?) {
+        if let id, globalDialog?.id != id {
+            return
+        }
+
+        hideGlobalDialog()
+    }
+}

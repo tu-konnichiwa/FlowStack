@@ -563,6 +563,24 @@ struct FlowStackTests {
         #expect(router.queuedGlobalDialogCount == 0)
     }
 
+    @Test func dialogDismissIgnoresStaleVisibleDialogID() {
+        let router = FlowRouter<TestRoute, TestDialog>(root: .home)
+
+        router.showGlobalDialog(TestDialog(id: "a"), policy: .queue)
+        router.showGlobalDialog(TestDialog(id: "b"), policy: .queue)
+        router.showGlobalDialog(TestDialog(id: "urgent"), policy: .replaceKeepingQueue)
+
+        router.hideGlobalDialog(id: "a")
+
+        #expect(router.globalDialog == TestDialog(id: "urgent"))
+        #expect(router.queuedGlobalDialogCount == 1)
+
+        router.hideGlobalDialog(id: "urgent")
+
+        #expect(router.globalDialog == TestDialog(id: "b"))
+        #expect(router.queuedGlobalDialogCount == 0)
+    }
+
     @Test func dialogQueuePolicyShowsNextDialogWhenCurrentIsHidden() {
         let router = FlowRouter<TestRoute, TestDialog>(root: .home)
 

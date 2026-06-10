@@ -28,12 +28,13 @@ public struct FlowStackView<Route: Hashable, Dialog: Identifiable, Screen: View>
         .id(router.rootID)
         .overlay {
             if let dialog {
+                let visibleDialogID = router.globalDialog?.id
                 dialog(
                     Binding(
                         get: { router.globalDialog },
                         set: { newValue in
                             if newValue == nil {
-                                router.hideGlobalDialog()
+                                router.hideGlobalDialog(id: visibleDialogID)
                             } else if let newValue {
                                 router.showGlobalDialog(newValue)
                             }
