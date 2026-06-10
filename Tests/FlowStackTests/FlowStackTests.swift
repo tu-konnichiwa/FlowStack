@@ -1,4 +1,5 @@
 import Combine
+import SwiftUI
 import Testing
 @testable import FlowStack
 
@@ -14,6 +15,20 @@ private enum TestRoute: Hashable {
 
 private struct TestDialog: Equatable, Identifiable {
     let id: String
+}
+
+private enum TestMixedDialog: Equatable, Identifiable {
+    case system(String)
+    case custom(String)
+
+    var id: String {
+        switch self {
+        case .system(let id):
+            return "system_\(id)"
+        case .custom(let id):
+            return "custom_\(id)"
+        }
+    }
 }
 
 private final class NonHashablePayload {
@@ -659,5 +674,48 @@ struct FlowStackTests {
 
         #expect(router.globalDialog == nil)
         #expect(router.queuedGlobalDialogCount == 0)
+    }
+
+    @Test func filteredDialogBindingReturnsOnlyIncludedDialog() {
+        var dialog: TestMixedDialog? = .custom("toast")
+        let binding = Binding<TestMixedDialog?>(
+            get: { dialog },
+            set: { dialog = $0 }
+        )
+
+        let systemBinding = binding.flowDialogFilter { dialog in
+            if case .system = dialog { return true }
+            return false
+        }
+        let customBinding = binding.flowDialogFilter { dialog in
+            if case .custom = dialog { return true }
+            return false
+        }
+
+        #expect(systemBinding.wrappedValue == nil)
+        #expect(customBinding.wrappedValue == .custom("toast"))
+    }
+
+    @Test func filteredDialogBindingOnlyClearsIncludedDialog() {
+        var dialog: TestMixedDialog? = .custom("toast")
+        let binding = Binding<TestMixedDialog?>(
+            get: { dialog },
+            set: { dialog = $0 }
+        )
+
+        let systemBinding = binding.flowDialogFilter { dialog in
+            if case .system = dialog { return true }
+            return false
+        }
+        let customBinding = binding.flowDialogFilter { dialog in
+            if case .custom = dialog { return true }
+            return false
+        }
+
+        systemBinding.wrappedValue = nil
+        #expect(dialog == .custom("toast"))
+
+        customBinding.wrappedValue = nil
+        #expect(dialog == nil)
     }
 }
