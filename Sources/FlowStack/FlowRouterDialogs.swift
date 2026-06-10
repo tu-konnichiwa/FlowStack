@@ -15,6 +15,11 @@ public extension FlowRouter {
             } else {
                 dialogQueue.append(dialog)
             }
+        case .interrupt:
+            if let globalDialog {
+                dialogQueue.insert(globalDialog, at: 0)
+            }
+            globalDialog = dialog
         case .ignoreIfVisible:
             if globalDialog == nil {
                 globalDialog = dialog

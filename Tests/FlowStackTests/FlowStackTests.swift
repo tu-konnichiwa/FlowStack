@@ -591,6 +591,38 @@ struct FlowStackTests {
         #expect(router.globalDialog == TestDialog(id: "b"))
     }
 
+    @Test func dialogInterruptPolicyShowsNewDialogBeforeVisibleDialog() {
+        let router = FlowRouter<TestRoute, TestDialog>(root: .home)
+
+        router.showGlobalDialog(TestDialog(id: "a"), policy: .queue)
+        router.showGlobalDialog(TestDialog(id: "b"), policy: .interrupt)
+
+        #expect(router.globalDialog == TestDialog(id: "b"))
+        #expect(router.queuedGlobalDialogCount == 1)
+
+        router.hideGlobalDialog()
+
+        #expect(router.globalDialog == TestDialog(id: "a"))
+        #expect(router.queuedGlobalDialogCount == 0)
+    }
+
+    @Test func dialogInterruptPolicyPreservesExistingQueueAfterInterruptedDialog() {
+        let router = FlowRouter<TestRoute, TestDialog>(root: .home)
+
+        router.showGlobalDialog(TestDialog(id: "a"), policy: .queue)
+        router.showGlobalDialog(TestDialog(id: "c"), policy: .queue)
+        router.showGlobalDialog(TestDialog(id: "b"), policy: .interrupt)
+
+        #expect(router.globalDialog == TestDialog(id: "b"))
+        #expect(router.queuedGlobalDialogCount == 2)
+
+        router.hideGlobalDialog()
+        #expect(router.globalDialog == TestDialog(id: "a"))
+
+        router.hideGlobalDialog()
+        #expect(router.globalDialog == TestDialog(id: "c"))
+    }
+
     @Test func dialogIgnorePolicyKeepsVisibleDialog() {
         let router = FlowRouter<TestRoute, TestDialog>(root: .home)
 

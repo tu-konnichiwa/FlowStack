@@ -18,9 +18,15 @@ public enum FlowPopMatch: Hashable, Sendable {
 }
 
 public enum FlowDialogPolicy: Hashable, Sendable {
+    /// Replace the visible dialog and clear any queued dialogs.
     case replace
+    /// Replace the visible dialog while preserving dialogs already waiting in the queue.
     case replaceKeepingQueue
+    /// Show immediately when no dialog is visible, otherwise append to the end of the queue.
     case queue
+    /// Show immediately and move the visible dialog to the front of the queue.
+    case interrupt
+    /// Keep the visible dialog and drop the new dialog when one is already visible.
     case ignoreIfVisible
 }
 
