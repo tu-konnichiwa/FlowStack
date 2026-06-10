@@ -239,6 +239,7 @@ enum AppDialog: Identifiable, Equatable {
     case networkError
     case sessionExpired
     case deleteLogo(id: String)
+    case customToast(String)
 
     var id: String {
         switch self {
@@ -248,26 +249,80 @@ enum AppDialog: Identifiable, Equatable {
             return "sessionExpired"
         case .deleteLogo(let id):
             return "deleteLogo_\(id)"
+        case .customToast(let message):
+            return "customToast_\(message)"
         }
+    }
+
+    var title: String {
+        switch self {
+        case .networkError:
+            return "Network error"
+        case .sessionExpired:
+            return "Session expired"
+        case .deleteLogo:
+            return "Delete logo?"
+        case .customToast:
+            return "Saved"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .networkError:
+            return "Check your connection and try again."
+        case .sessionExpired:
+            return "Please sign in again."
+        case .deleteLogo:
+            return "This action cannot be undone."
+        case .customToast(let message):
+            return message
+        }
+    }
+
+    var isSystemAlert: Bool {
+        if case .customToast = self { return false }
+        return true
+    }
+
+    var isCustomToast: Bool {
+        if case .customToast = self { return true }
+        return false
     }
 }
 ```
 
-### Render the dialog
+### Render native and custom dialogs
 
 ```swift
 FlowStackView(router: router) { route in
     screen(for: route)
 } dialog: { dialog in
-    AppDialogView(dialog: dialog)
+    AnyView(
+        ZStack {
+            Color.clear
+                .frame(width: 0, height: 0)
+                .alert(item: dialog.flowDialogFilter(\.isSystemAlert)) { dialog in
+                    Alert(
+                        title: Text(dialog.title),
+                        message: Text(dialog.message)
+                    )
+                }
+
+            CustomToastView(dialog: dialog.flowDialogFilter(\.isCustomToast))
+        }
+    )
 }
 ```
+
+`flowDialogFilter` lets multiple renderers share the same FlowStack dialog binding safely. A native alert renderer can ignore custom overlay cases, and a custom renderer can ignore system alert cases without clearing each other.
 
 ### Show and hide dialogs
 
 ```swift
 router.showGlobalDialog(.networkError, policy: .queue)
 router.showGlobalDialog(.sessionExpired, policy: .replace)
+router.showGlobalDialog(.networkError, policy: .interrupt)
 router.hideGlobalDialog()
 router.clearGlobalDialogs()
 ```
@@ -277,9 +332,12 @@ router.clearGlobalDialogs()
 | Policy | Behavior | Recommended use |
 | --- | --- | --- |
 | replace | Replaces the visible dialog and clears the queue | critical blockers |
-| replaceKeepingQueue | Replaces the visible dialog but keeps queued dialogs | temporary interruption |
-| queue | Shows immediately if possible, otherwise queues | normal alerts |
+| replaceKeepingQueue | Replaces the visible dialog but keeps queued dialogs | urgent replacement that should not lose queued work |
+| queue | Shows immediately if possible, otherwise appends to the queue | normal alerts |
+| interrupt | Shows immediately and moves the visible dialog to the front of the queue | B should show before A, then return to A |
 | ignoreIfVisible | Ignores the request while a dialog is visible | low-priority toasts |
+
+For example, `A` visible then `B` with `.queue` gives `A -> B`. `A` visible then `B` with `.interrupt` gives `B -> A`. `A` visible, `B` queued, then `C` with `.replaceKeepingQueue` gives `C -> B`.
 
 ## Styling
 
