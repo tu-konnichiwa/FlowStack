@@ -13,6 +13,12 @@ private enum TestRoute: Hashable {
     case picker
 }
 
+private enum TestTab: Hashable {
+    case home
+    case search
+    case settings
+}
+
 private struct TestDialog: Equatable, Identifiable {
     let id: String
 }
@@ -717,5 +723,71 @@ struct FlowStackTests {
 
         customBinding.wrappedValue = nil
         #expect(dialog == nil)
+    }
+
+    @Test func tabRouterInitializesChildRouters() {
+        let router = FlowTabRouter<TestTab, TestRoute, TestDialog>(
+            tabs: [
+                FlowTab(.home, root: .home),
+                FlowTab(.search, root: .settings, path: [.detail(1)]),
+                FlowTab(.settings, root: .settings)
+            ],
+            selectedTab: .search
+        )
+
+        #expect(router.selectedTab == .search)
+        #expect(router.activeRouter.rootStack.root == .settings)
+        #expect(router.router(for: .search).rootStack.path == [.detail(1)])
+    }
+
+    @Test func tabRouterKeepsNavigationStatePerTab() {
+        let router = FlowTabRouter<TestTab, TestRoute, TestDialog>(
+            tabs: [
+                FlowTab(.home, root: .home),
+                FlowTab(.search, root: .settings)
+            ]
+        )
+
+        router.push(.detail(1))
+        router.selectTab(.search)
+        router.push(.detail(2))
+
+        #expect(router.router(for: .home).rootStack.path == [.detail(1)])
+        #expect(router.router(for: .search).rootStack.path == [.detail(2)])
+        #expect(router.activeRouter.topRoute == .detail(2))
+    }
+
+    @Test func tabRouterCanNavigateSpecificInactiveTab() {
+        let router = FlowTabRouter<TestTab, TestRoute, TestDialog>(
+            tabs: [
+                FlowTab(.home, root: .home),
+                FlowTab(.search, root: .settings)
+            ]
+        )
+
+        router.push(.detail(3), on: .search)
+
+        #expect(router.selectedTab == .home)
+        #expect(router.router(for: .home).rootStack.path.isEmpty)
+        #expect(router.router(for: .search).rootStack.path == [.detail(3)])
+    }
+
+    @Test func tabRouterGlobalDialogSupportsInterruptPolicy() {
+        let router = FlowTabRouter<TestTab, TestRoute, TestDialog>(
+            tabs: [
+                FlowTab(.home, root: .home),
+                FlowTab(.search, root: .settings)
+            ]
+        )
+
+        router.showGlobalDialog(TestDialog(id: "a"), policy: .queue)
+        router.showGlobalDialog(TestDialog(id: "b"), policy: .interrupt)
+
+        #expect(router.globalDialog == TestDialog(id: "b"))
+        #expect(router.queuedGlobalDialogCount == 1)
+
+        router.hideGlobalDialog()
+
+        #expect(router.globalDialog == TestDialog(id: "a"))
     }
 }

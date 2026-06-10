@@ -473,9 +473,9 @@ FlowRouteIDDiagnostics.warnsOnFallbackID = false
 
 ## Common patterns
 
-### TabView with independent stacks
+### TabView with one tab router
 
-Use one router per tab when each tab should keep its own navigation history.
+Use `FlowTabRouter` when one app-level router should own multiple tab stacks. Each tab keeps an independent `FlowRouter` internally, while tab selection and global dialogs stay centralized.
 
 ```swift
 enum AppTab {
@@ -484,32 +484,50 @@ enum AppTab {
     case settings
 }
 
-@State private var selectedTab: AppTab = .home
-@StateObject private var homeRouter = FlowRouter<HomeRoute, AppDialog>(root: .feed)
-@StateObject private var searchRouter = FlowRouter<SearchRoute, AppDialog>(root: .search)
-@StateObject private var settingsRouter = FlowRouter<SettingsRoute, AppDialog>(root: .main)
+enum AppRoute: Hashable {
+    case feed
+    case search
+    case settings
+    case detail(Int)
+}
+
+@StateObject private var router = FlowTabRouter<AppTab, AppRoute, AppDialog>(
+    tabs: [
+        FlowTab(.home, root: .feed),
+        FlowTab(.search, root: .search),
+        FlowTab(.settings, root: .settings)
+    ]
+)
 
 var body: some View {
-    TabView(selection: $selectedTab) {
-        FlowStackView(router: homeRouter) { route in
-            homeScreen(for: route)
+    FlowTabStackView(router: router) { route in
+        screen(for: route)
+    } label: { tab in
+        switch tab {
+        case .home:
+            Label("Home", systemImage: "house")
+        case .search:
+            Label("Search", systemImage: "magnifyingglass")
+        case .settings:
+            Label("Settings", systemImage: "gearshape")
         }
-        .tag(AppTab.home)
-
-        FlowStackView(router: searchRouter) { route in
-            searchScreen(for: route)
-        }
-        .tag(AppTab.search)
-
-        FlowStackView(router: settingsRouter) { route in
-            settingsScreen(for: route)
-        }
-        .tag(AppTab.settings)
+    } dialog: { dialog in
+        AnyView(
+            Color.clear
+                .frame(width: 0, height: 0)
+                .alert(item: dialog) { dialog in
+                    Alert(
+                        title: Text(dialog.title),
+                        message: Text(dialog.message),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
+        )
     }
 }
 ```
 
-Use a shared app-level dialog model if a dialog should appear above any tab, or keep one dialog type per router when tabs are fully isolated.
+Use `router.push(.detail(1))` to navigate in the selected tab, or `router.push(.detail(1), on: .search)` to target a specific tab without switching. For advanced per-tab control, use `router.router(for: .search)`.
 
 ### NavigationSplitView
 
