@@ -565,6 +565,26 @@ router.replaceCurrent(with: .settings)
 router.pushRemovingPrevious(.main)
 ```
 
+### Confirm native back or dismiss gestures
+
+Guards and preconditions run for operations sent through FlowRouter. Native SwiftUI gestures can mutate bindings directly, so use explicit controls when a flow must confirm before leaving.
+
+```swift
+EditorScreen()
+    .interactiveDismissDisabled(editor.hasUnsavedChanges)
+    .toolbar {
+        Button("Close") {
+            if editor.hasUnsavedChanges {
+                router.showGlobalDialog(.discardChanges, policy: .interrupt)
+            } else {
+                router.dismiss()
+            }
+        }
+    }
+```
+
+For pushed screens, hide or replace the default back affordance when you need a save-before-leave flow, then call `router.pop()` after confirmation.
+
 ### Keep the same root route but refresh its identity
 
 ```swift
