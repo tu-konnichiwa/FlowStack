@@ -499,6 +499,34 @@ var body: some View {
 
 Use a shared app-level dialog model if a dialog should appear above any tab, or keep one dialog type per router when tabs are fully isolated.
 
+### NavigationSplitView
+
+Keep the split-view selection in app state, then use FlowStack for the column that needs push/modal routing.
+
+```swift
+@State private var selectedProject: Project.ID?
+@StateObject private var detailRouter = FlowRouter<ProjectRoute, AppDialog>(root: .empty)
+
+var body: some View {
+    NavigationSplitView {
+        ProjectList(selection: $selectedProject)
+    } detail: {
+        FlowStackView(router: detailRouter) { route in
+            projectScreen(for: route)
+        }
+        .onChange(of: selectedProject) { _, projectID in
+            if let projectID {
+                detailRouter.setRoot(.overview(projectID))
+            } else {
+                detailRouter.setRoot(.empty)
+            }
+        }
+    }
+}
+```
+
+This keeps SwiftUI's multi-column selection model in charge of columns, while FlowStack owns navigation inside the selected detail flow.
+
 ### Deep-link or restore navigation state
 
 ```swift
