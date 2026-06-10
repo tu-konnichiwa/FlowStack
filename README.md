@@ -192,6 +192,29 @@ let options = FlowPresentationOptions(
 router.sheet(.picker, options: options)
 ```
 
+FlowPresentationOptions intentionally stores only navigation-state behavior. SwiftUI presentation modifiers such as detents, backgrounds, drag indicators, compact adaptation, and corner radius should stay on the presented screen or in `FlowNavigationStyle.modalStyle`, because SwiftUI applies them at view boundaries.
+
+```swift
+case .picker:
+    PickerScreen()
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(.thinMaterial)
+```
+
+Use `modalStyle` when the treatment depends on the presentation stack rather than a single screen.
+
+```swift
+let style = FlowNavigationStyle.default
+    .modalStyle { view, context in
+        if context.presentationStyle == .sheet {
+            view.presentationCornerRadius(24)
+        } else {
+            view
+        }
+    }
+```
+
 ## Conditions and guards
 
 FlowStack supports both sync and async preconditions.
