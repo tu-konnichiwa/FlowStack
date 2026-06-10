@@ -78,6 +78,18 @@ Then import it:
 import FlowStack
 ```
 
+### Local development and example apps
+
+When testing unreleased FlowStack changes in an example app, point Swift Package Manager at your local checkout instead of the last tagged release.
+
+```swift
+dependencies: [
+    .package(path: "../FlowStack")
+]
+```
+
+After validating the example app, tag and release a new version before switching consumers back to the remote package rule. Apps pinned to `from: "1.0.2"` will not receive local fixes until a newer tag is available and resolved.
+
 ## Quick start
 
 ### 1. Define routes
