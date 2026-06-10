@@ -533,6 +533,26 @@ This keeps SwiftUI's multi-column selection model in charge of columns, while Fl
 router.replacePath(root: .home, path: [.detail(42), .settings])
 ```
 
+FlowStack keeps route values in memory. Your app should own URL parsing and serialization because route payloads are domain-specific.
+
+```swift
+struct NavigationSnapshot: Codable {
+    var root: AppRoute
+    var path: [AppRoute]
+}
+
+func restore(_ snapshot: NavigationSnapshot) {
+    router.replacePath(root: snapshot.root, path: snapshot.path)
+}
+
+func open(url: URL) {
+    guard let productID = ProductDeepLink(url: url)?.id else { return }
+    router.setRoot(.home, path: [.product(productID), .reviews(productID)])
+}
+```
+
+For routes that carry closures, bindings, or non-Codable values, restore into an equivalent route id and recreate the live dependency from app state.
+
 ### Replace the current screen while keeping the stack
 
 ```swift
