@@ -461,6 +461,44 @@ FlowRouteIDDiagnostics.warnsOnFallbackID = false
 
 ## Common patterns
 
+### TabView with independent stacks
+
+Use one router per tab when each tab should keep its own navigation history.
+
+```swift
+enum AppTab {
+    case home
+    case search
+    case settings
+}
+
+@State private var selectedTab: AppTab = .home
+@StateObject private var homeRouter = FlowRouter<HomeRoute, AppDialog>(root: .feed)
+@StateObject private var searchRouter = FlowRouter<SearchRoute, AppDialog>(root: .search)
+@StateObject private var settingsRouter = FlowRouter<SettingsRoute, AppDialog>(root: .main)
+
+var body: some View {
+    TabView(selection: $selectedTab) {
+        FlowStackView(router: homeRouter) { route in
+            homeScreen(for: route)
+        }
+        .tag(AppTab.home)
+
+        FlowStackView(router: searchRouter) { route in
+            searchScreen(for: route)
+        }
+        .tag(AppTab.search)
+
+        FlowStackView(router: settingsRouter) { route in
+            settingsScreen(for: route)
+        }
+        .tag(AppTab.settings)
+    }
+}
+```
+
+Use a shared app-level dialog model if a dialog should appear above any tab, or keep one dialog type per router when tabs are fully isolated.
+
 ### Deep-link or restore navigation state
 
 ```swift
