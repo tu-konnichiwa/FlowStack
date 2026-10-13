@@ -1,0 +1,13 @@
+name: Validate library and consumer
+on:
+  push:
+  pull_request:
+jobs:
+  validate:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Tests, consumer integration, release and iOS build
+        run: ./Scripts/validate.sh

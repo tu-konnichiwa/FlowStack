@@ -5,7 +5,7 @@ extension FlowRouter {
     func apply(
         _ operation: FlowOperation<Route>,
         precondition: Precondition?,
-        mutation: () -> Void
+        mutation: () -> FlowOperationOutcome
     ) -> Bool {
         let previousStacks = stacks
         let selectedPrecondition = precondition ?? defaultPreconditions[operation.kind]
@@ -18,10 +18,12 @@ extension FlowRouter {
             record(operation, previousStacks: previousStacks, outcome: .blockedByGuard)
             return false
         }
-        mutation()
-        record(operation, previousStacks: previousStacks, outcome: .applied)
-        didApplyOperation?(operation, stacks)
-        return true
+        let outcome = mutation()
+        record(operation, previousStacks: previousStacks, outcome: outcome)
+        if outcome == .applied {
+            didApplyOperation?(operation, previousStacks)
+        }
+        return outcome == .applied
     }
 
     func asyncConditionAllows(
@@ -30,7 +32,12 @@ extension FlowRouter {
     ) async -> Bool {
         let previousStacks = stacks
         let selectedPrecondition = explicit ?? defaultAsyncPreconditions[operation.kind]
-        if await selectedPrecondition?(operation, previousStacks) == false {
+        let allowed = await selectedPrecondition?(operation, previousStacks) ?? true
+        if Task.isCancelled {
+            record(operation, previousStacks: previousStacks, outcome: .cancelled)
+            return false
+        }
+        if !allowed {
             record(operation, previousStacks: previousStacks, outcome: .blockedByPrecondition)
             return false
         }
@@ -51,28 +58,16 @@ extension FlowRouter {
             )
         )
 
+        trimOperationHistory()
+    }
+
+    func trimOperationHistory() {
         if maximumOperationHistoryCount > 0, operationHistory.count > maximumOperationHistoryCount {
             operationHistory.removeFirst(operationHistory.count - maximumOperationHistoryCount)
         }
     }
 
-    func index(for target: FlowStackTarget) -> Int? {
-        switch target {
-        case .root:
-            return 0
-        case .active:
-            return activeIndex
-        case .stack(let id):
-            return stacks.firstIndex { $0.id == id }
-        }
-    }
-
     func dismissStack(at index: Int) {
-        guard index > 0, stacks.indices.contains(index) else { return }
-        if stacks[index].options.clearsNestedPresentationOnDismiss {
-            stacks.removeSubrange(index...)
-        } else {
-            stacks.remove(at: index)
-        }
+        FlowNavigationReducer.dismissStack(at: index, stacks: &stacks)
     }
 }

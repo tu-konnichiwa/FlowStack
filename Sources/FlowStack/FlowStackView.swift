@@ -1,11 +1,17 @@
 import SwiftUI
 
+/// SwiftUI host for one router's root and nested modal stacks.
+/// The consumer retains the router; this host observes it. The optional dialog
+/// renderer receives the visible dialog binding on the topmost presentation layer.
+/// Clearing that binding promotes queued dialogs. Native gestures bypass guards;
+/// use explicit controls for confirmation-before-leave flows.
 public struct FlowStackView<Route: Hashable, Dialog: Identifiable, Screen: View>: View {
     @ObservedObject private var router: FlowRouter<Route, Dialog>
     private let style: FlowNavigationStyle
     private let screen: (Route) -> Screen
     private let dialog: ((Binding<Dialog?>) -> AnyView)?
 
+    /// Hosts route screens with optional legacy AnyView dialog rendering.
     public init(
         router: FlowRouter<Route, Dialog>,
         style: FlowNavigationStyle = .default,
@@ -18,39 +24,37 @@ public struct FlowStackView<Route: Hashable, Dialog: Identifiable, Screen: View>
         self.dialog = dialog
     }
 
+    /// Accepts any dialog view without requiring consumers to erase it to AnyView.
+    public init<DialogContent: View>(
+        router: FlowRouter<Route, Dialog>,
+        style: FlowNavigationStyle = .default,
+        @ViewBuilder screen: @escaping (Route) -> Screen,
+        @ViewBuilder dialog: @escaping (Binding<Dialog?>) -> DialogContent
+    ) {
+        self.router = router
+        self.style = style
+        self.screen = screen
+        self.dialog = { AnyView(dialog($0)) }
+    }
+
     public var body: some View {
         FlowStackLayer(
             router: router,
             index: 0,
             style: style,
-            screen: screen
+            screen: screen,
+            dialog: dialog
         )
         .id(router.rootID)
-        .overlay {
-            if let dialog {
-                let visibleDialogID = router.globalDialog?.id
-                dialog(
-                    Binding(
-                        get: { router.globalDialog },
-                        set: { newValue in
-                            if newValue == nil {
-                                router.hideGlobalDialog(id: visibleDialogID)
-                            } else if let newValue {
-                                router.showGlobalDialog(newValue)
-                            }
-                        }
-                    )
-                )
-            }
-        }
     }
 }
 
-private struct FlowStackLayer<Route: Hashable, Dialog, Screen: View>: View {
+private struct FlowStackLayer<Route: Hashable, Dialog: Identifiable, Screen: View>: View {
     @ObservedObject var router: FlowRouter<Route, Dialog>
     let index: Int
     let style: FlowNavigationStyle
     let screen: (Route) -> Screen
+    let dialog: ((Binding<Dialog?>) -> AnyView)?
 
     var body: some View {
         if router.stacks.indices.contains(index) {
@@ -85,23 +89,40 @@ private struct FlowStackLayer<Route: Hashable, Dialog, Screen: View>: View {
                 ),
                 context
             )
+            .overlay {
+                if index == router.activeIndex, let dialog {
+                    let visibleID = router.globalDialog?.id
+                    dialog(Binding(
+                        get: { router.globalDialog },
+                        set: { value in
+                            if let value {
+                                router.showGlobalDialog(value)
+                            } else if let visibleID {
+                                router.hideGlobalDialog(id: visibleID)
+                            }
+                        }
+                    ))
+                }
+            }
             .modifier(
                 FlowPresentationLayer(
                     router: router,
                     index: index + 1,
                     style: style,
-                    screen: screen
+                    screen: screen,
+                    dialog: dialog
                 )
             )
         }
     }
 }
 
-private struct FlowPresentationLayer<Route: Hashable, Dialog, Screen: View>: ViewModifier {
+private struct FlowPresentationLayer<Route: Hashable, Dialog: Identifiable, Screen: View>: ViewModifier {
     @ObservedObject var router: FlowRouter<Route, Dialog>
     let index: Int
     let style: FlowNavigationStyle
     let screen: (Route) -> Screen
+    let dialog: ((Binding<Dialog?>) -> AnyView)?
 
     func body(content: Content) -> some View {
         content
@@ -133,7 +154,7 @@ private struct FlowPresentationLayer<Route: Hashable, Dialog, Screen: View>: Vie
             )
             style.modal(
                 AnyView(
-                    FlowStackLayer(router: router, index: index, style: style, screen: screen)
+                    FlowStackLayer(router: router, index: index, style: style, screen: screen, dialog: dialog)
                         .interactiveDismissDisabled(!stack.options.allowsInteractiveDismiss)
                 ),
                 context
@@ -142,14 +163,17 @@ private struct FlowPresentationLayer<Route: Hashable, Dialog, Screen: View>: Vie
     }
 
     private func isPresentedBinding(for style: FlowPresentationStyle) -> Binding<Bool> {
-        Binding(
+        // Capture identity, not an array index: a stale host must not dismiss its successor.
+        let stackID = router.stacks.indices.contains(index) ? router.stacks[index].id : nil
+        return Binding(
             get: {
-                router.stacks.indices.contains(index) && router.stacks[index].style == style
+                guard let stackID else { return false }
+                return router.stacks.contains { $0.id == stackID && $0.style == style }
             },
             set: { isPresented in
-                guard !isPresented, router.stacks.indices.contains(index) else { return }
-                let stackID = router.stacks[index].id
-                router.dismiss(.stack(stackID))
+                guard !isPresented, let stackID,
+                      let currentIndex = router.stacks.firstIndex(where: { $0.id == stackID }) else { return }
+                router.dismissStack(at: currentIndex)
             }
         )
     }

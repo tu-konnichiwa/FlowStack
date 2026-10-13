@@ -1,9 +1,26 @@
 import Foundation
 
+/// Configuration for prototype-only reflection fallback diagnostics.
 public enum FlowRouteIDDiagnostics {
-    nonisolated(unsafe) public static var warnsOnFallbackID = true
+    private static let configuration = Configuration()
+
+    /// Thread-safe logging toggle. Fallback identity is only suitable for prototyping.
+    public static var warnsOnFallbackID: Bool {
+        get { configuration.lock.withLock { configuration.enabled } }
+        set { configuration.lock.withLock { configuration.enabled = newValue } }
+    }
+
+    private final class Configuration: @unchecked Sendable {
+        let lock = NSLock()
+        var enabled = true
+    }
 }
 
+/// Route equality and hashing based on a String ID; useful for non-Hashable payloads.
+/// Override id for production: IDs must distinguish semantic routes and stay stable
+/// for the lifetime of a stored route. Callbacks are excluded from equality.
+/// The reflection fallback is for prototypes; it is not a persistence format and
+/// can collide for ambiguous payload descriptions.
 public protocol RouteHashable: Hashable, Identifiable where ID == String {}
 
 public extension RouteHashable {
@@ -28,7 +45,14 @@ private enum FlowRouteID {
             return enumID(from: value, mirror: mirror)
         }
 
-        return componentID(from: value) ?? String(reflecting: value)
+        // Calling componentID on the route itself would call its default id recursively.
+        if let child = mirror.children.first(where: { $0.label == "id" }) {
+            return componentID(from: child.value) ?? String(reflecting: child.value)
+        }
+        if FlowRouteIDDiagnostics.warnsOnFallbackID {
+            debugPrint("FlowStack warning: Override RouteHashable.id for stable production route identity.")
+        }
+        return String(reflecting: value)
     }
 
     private static func enumID(from value: Any, mirror: Mirror) -> String {
@@ -102,6 +126,7 @@ private enum FlowRouteID {
     }
 }
 
+/// Base route for subclass payloads whose identity is an explicit immutable String.
 open class AnyRouteHashable: RouteHashable {
     public let id: String
 
