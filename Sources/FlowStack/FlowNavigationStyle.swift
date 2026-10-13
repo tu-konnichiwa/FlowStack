@@ -66,7 +66,7 @@ public struct FlowNavigationStyle {
 
     /// Creates identity transforms by default. Newer SwiftUI modifiers need app-owned availability checks.
     public init(
-        hidesNavigationBar: Bool = true,
+        hidesNavigationBar: Bool = false,
         multilineTextAlignment: TextAlignment? = .leading,
         stack: @escaping (AnyView, Context) -> AnyView = { view, _ in view },
         screen: @escaping (AnyView, Context) -> AnyView = { view, _ in view },

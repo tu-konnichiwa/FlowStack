@@ -13,14 +13,14 @@ route models, deep-link parsing, persistence, and screen rendering.
 ## Installation
 
 In Xcode, use **File → Add Package Dependencies** with
-`https://github.com/tu-konnichiwa/FlowStack.git`, select version `1.0.3`, and
+`https://github.com/tu-konnichiwa/FlowStack.git`, select version `1.0.4`, and
 add the FlowStack product to your app. To declare the same dependency in a
 consumer package:
 
 ```swift
 // In the consumer's Package.swift:
 dependencies: [
-    .package(url: "https://github.com/tu-konnichiwa/FlowStack.git", from: "1.0.3")
+    .package(url: "https://github.com/tu-konnichiwa/FlowStack.git", from: "1.0.4")
 ],
 targets: [
     .target(name: "YourApp", dependencies: [

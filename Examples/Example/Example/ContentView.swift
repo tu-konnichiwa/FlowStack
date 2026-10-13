@@ -12,13 +12,13 @@ struct ContentView: View {
             if isShowingSingleStackDemo {
                 FlowStackView(
                     router: navigator.singleStackRouter,
-                    style: .default.navigationBarHidden(false),
+                    style: .default,
                     screen: singleStackScreen(for:)
                 )
             } else {
                 FlowTabStackView(
                     router: navigator.router,
-                    style: .default.navigationBarHidden(false),
+                    style: .default,
                     screen: screen(for:),
                     label: { tab in
                         Label(tab.title, systemImage: tab.symbol)
