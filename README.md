@@ -30,8 +30,8 @@ targets: [
 ```
 
 For local development, replace the versioned URL dependency with
-`.package(path: "../FlowStack")`. See the iOS app example under `Examples/` for
-a native consumer integration.
+`.package(path: "../FlowStack")`. See the [iOS app example](Examples/Example/README.md)
+for a native consumer integration built against this checkout.
 
 ## Quick start — no dialogs required
 
@@ -280,8 +280,9 @@ weakly if that owner also retains the router.
 - SwiftUI visual layering, animation completion, and device gestures require
   app-level UI tests. Package tests verify state and compile view builders.
 
-See [ShopDemo](Examples/ShopDemo/README.md) for tested deep links, checkout gating,
-modal navigation, and restoration. See [API contracts](Documentation/API.md),
+See the [Example iOS app](Examples/Example/README.md) for independent tab stacks,
+push and modal navigation, async checkout gating, and global dialogs. See
+[API contracts](Documentation/API.md),
 [architecture decisions](Documentation/Architecture.md), and
 [consumer review and release gaps](Documentation/ConsumerReview.md).
 
@@ -289,15 +290,15 @@ modal navigation, and restoration. See [API contracts](Documentation/API.md),
 
 ```sh
 swift test
-open Examples/ShopDemo/ShopDemo.xcodeproj
-./Scripts/validate.sh # Tests, release build, and Xcode iOS app build; requires Xcode.
+open Examples/Example/Example.xcodeproj
+./Scripts/validate.sh # Tests and builds the library and Example iOS app; requires Xcode.
 ```
 
 Use `DEVELOPER_DIR` to select a compatible Xcode toolchain when command-line tools
-point to another SDK. The validation script uses temporary build/cache paths and removes them on exit.
-It runs iOS simulator tests when a simulator runtime is available and always
-builds the generic iOS simulator destination. The GitHub Actions workflow runs
-the same checks on macOS.
+point to another SDK. The validation script uses temporary build/cache paths and
+removes them on exit. It builds the library for the iOS Simulator and builds the
+Example app for a generic iOS Simulator destination. The GitHub Actions workflow
+runs the same checks on macOS.
 
 Release policy: follow semantic versioning, document behavior corrections, and
 provide migration notes before tagging. This refactor preserves command
